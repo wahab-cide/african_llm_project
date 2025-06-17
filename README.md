@@ -1,2 +1,2 @@
 # African LLM Project
-Languages: Hausa, Twi(Akan), and Fulani. 
+Languages: Amharic(am), Fulani(af), Hausa(ha), Somali(so), Swahili(sw). 

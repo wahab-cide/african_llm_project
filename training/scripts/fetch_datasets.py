@@ -1,34 +1,22 @@
-#!/usr/bin/env python3
-"""
-Download three public corpora per language and write them to
-data/raw/<lang>/{oscar,extra}/*.txt
-
-• OSCAR  – Common-Crawl monolingual slice
-• JW300  – Bible parallel corpus (ha, ak)
-• ALFFA  – Speech transcripts (ff)
-"""
-
 from pathlib import Path
 from datasets import load_dataset, disable_caching
 
-disable_caching()          # keeps ~/.cache small; remove if you prefer caching
-
-# Updated language mappings with available OSCAR configurations
+disable_caching()        
 LANGS = {
-    "hausa":  ("ha", "ha"),   # folder -> (oscar_tag, misc_tag) - NOTE: ha not in OSCAR
-    "twi":    ("ak", "ak"),   # NOTE: ak not in OSCAR  
-    "fulani": ("ff", "ff"),   # NOTE: ff not in OSCAR
+    "hausa":  ("ha", "ha"),  
+    "twi":    ("ak", "ak"),  
+    "fulani": ("ff", "ff"),  
 }
 
-# Alternative mappings for languages available in OSCAR
+
 ALTERNATIVE_LANGS = {
-    "swahili": ("sw", "sw"),  # Swahili - available in OSCAR
-    "yoruba":  ("yo", "yo"),  # Yoruba - available in OSCAR
-    "amharic": ("am", "am"),  # Amharic - available in OSCAR
-    "somali":  ("so", "so"),  # Somali - available in OSCAR
+    "swahili": ("sw", "sw"),  
+    "yoruba":  ("yo", "yo"),  
+    "amharic": ("am", "am"),  
+    "somali":  ("so", "so"), 
 }
 
-RAW_DIR = Path("data/raw")    # base output folder
+RAW_DIR = Path("data/raw")   
 
 
 def save_lines(lines, out_path: Path):
@@ -44,7 +32,7 @@ def download_oscar_data(folder, oscar_tag, misc_tag):
     """Download OSCAR data for a given language."""
     try:
         config = f"unshuffled_deduplicated_{oscar_tag}"
-        print(f"⬇️  OSCAR {config}")
+        print(f"  OSCAR {config}")
         oscar_ds = load_dataset("oscar", config, split="train", streaming=True)
         save_lines((row["text"] for row in oscar_ds),
                    RAW_DIR / folder / "oscar" / f"oscar_{oscar_tag}.txt")
@@ -58,19 +46,19 @@ def download_extra_data(folder, oscar_tag, misc_tag):
     """Download extra data (JW300 or ALFFA) for a given language."""
     try:
         if misc_tag in ("ha", "ak"):
-            print(f"⬇️  JW300 {misc_tag}-en")
+            print(f"  JW300 {misc_tag}-en")
             jw_ds = load_dataset("opus100", f"{misc_tag}-en", split="train")
             lines = (ex["translation"][misc_tag] for ex in jw_ds)
             save_lines(lines, RAW_DIR / folder / "extra" / f"jw300_{misc_tag}.txt")
             return True
         elif misc_tag == "ff":
-            print("⬇️  ALFFA ff")
+            print("  ALFFA ff")
             ff_ds = load_dataset("afrispeech/alffa", "ff", split="train")
             save_lines((ex["sentence"] for ex in ff_ds),
                        RAW_DIR / folder / "extra" / "ALFFA_ff.txt")
             return True
         else:
-            print(f"⚠️  No extra dataset configured for {misc_tag}")
+            print(f"  No extra dataset configured for {misc_tag}")
             return False
     except Exception as e:
         print(f"Error downloading extra data for {misc_tag}: {e}")
@@ -80,17 +68,17 @@ def download_extra_data(folder, oscar_tag, misc_tag):
 
 
 for folder, (oscar_tag, misc_tag) in LANGS.items():
-    print(f"\n📁 Processing {folder} ({oscar_tag})...")
+    print(f"\n Processing {folder} ({oscar_tag})...")
     
     oscar_success = download_oscar_data(folder, oscar_tag, misc_tag)
     extra_success = download_extra_data(folder, oscar_tag, misc_tag)
     
     if not oscar_success:
-        print(f"⚠️  OSCAR data not available for {oscar_tag}")
+        print(f"  OSCAR data not available for {oscar_tag}")
 
 
 for folder, (oscar_tag, misc_tag) in ALTERNATIVE_LANGS.items():
-    print(f"\n📁 Processing {folder} ({oscar_tag})...")
+    print(f"\n Processing {folder} ({oscar_tag})...")
     
     oscar_success = download_oscar_data(folder, oscar_tag, misc_tag)
     extra_success = download_extra_data(folder, oscar_tag, misc_tag)

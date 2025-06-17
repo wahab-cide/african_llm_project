@@ -36,6 +36,10 @@ def process_files(in_glob: str, out_file: Path, lang_code: str) -> None:
 
 if __name__ == "__main__":
     process_files("data/raw/hausa/**/*.txt", Path("data/processed/hausa.txt"), "hausa")
-    process_files("data/raw/twi/**/*.txt", Path("data/processed/twi.txt"), "twi")
+    process_files("data/raw/swahili/**/*.txt", Path("data/processed/swahili.txt"), "swahili")
     process_files("data/raw/fulani/**/*.txt", Path("data/processed/fulani.txt"), "fulani")
+    process_files("data/raw/amharic/**/*.txt", Path("data/processed/amharic.txt"), "hausa")
+    process_files("data/raw/somali/**/*.txt", Path("data/processed/somali.txt"), "twi")
+    process_files("data/raw/yoruba/**/*.txt", Path("data/processed/yoruba.txt"), "fulani")
+                  
                   
