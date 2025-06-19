@@ -14,10 +14,72 @@ from transformers import (
     Trainer,
     TrainingArguments,
     DataCollatorForLanguageModeling,
-    PreTrainedTokenizerFast,
 )
+import sentencepiece as spm
 
 import wandb
+
+
+class SentencePieceTokenizerWrapper:
+    """Wrapper for SentencePiece tokenizer to work with transformers."""
+    
+    def __init__(self, model_path: str):
+        self.sp = spm.SentencePieceProcessor()
+        self.sp.load(model_path)
+        
+        # Set special tokens
+        self.bos_token = "<bos>"
+        self.eos_token = "<eos>"
+        self.unk_token = "<unk>"
+        self.pad_token = "<pad>"
+        
+        # Get token IDs
+        self.bos_token_id = self.sp.piece_to_id(self.bos_token)
+        self.eos_token_id = self.sp.piece_to_id(self.eos_token)
+        self.unk_token_id = self.sp.piece_to_id(self.unk_token)
+        self.pad_token_id = self.sp.piece_to_id(self.pad_token)
+        
+        self.vocab_size = self.sp.get_piece_size()
+    
+    def encode(self, text: str, **kwargs) -> list:
+        """Encode text to token IDs."""
+        return self.sp.encode_as_ids(text)
+    
+    def decode(self, token_ids: list, **kwargs) -> str:
+        """Decode token IDs to text."""
+        return self.sp.decode_ids(token_ids)
+    
+    def convert_tokens_to_ids(self, tokens: list) -> list:
+        """Convert tokens to IDs."""
+        return [self.sp.piece_to_id(token) for token in tokens]
+    
+    def convert_ids_to_tokens(self, ids: list) -> list:
+        """Convert IDs to tokens."""
+        return [self.sp.id_to_piece(id) for id in ids]
+    
+    def save_pretrained(self, output_dir: str):
+        """Save the tokenizer to the output directory."""
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Save the SentencePiece model
+        model_path = os.path.join(output_dir, "spiece.model")
+        with open(model_path, "wb") as f:
+            f.write(self.sp.serialized_model_proto())
+        
+        # Create a minimal tokenizer config
+        config = {
+            "model_max_length": 256,
+            "unk_token": self.unk_token,
+            "bos_token": self.bos_token,
+            "eos_token": self.eos_token,
+            "pad_token": self.pad_token,
+            "special_tokens_map_file": None
+        }
+        
+        import json
+        config_path = os.path.join(output_dir, "tokenizer_config.json")
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=2)
 
 
 @dataclass
@@ -76,20 +138,31 @@ def load_config_from_yaml(config_path: Path) -> Config:
         else:
             flat_config[section] = values
     
+    # Convert string values to appropriate types
+    if 'lr' in flat_config and isinstance(flat_config['lr'], str):
+        flat_config['lr'] = float(flat_config['lr'])
+    
+    if 'warmup_ratio' in flat_config and isinstance(flat_config['warmup_ratio'], str):
+        flat_config['warmup_ratio'] = float(flat_config['warmup_ratio'])
+    
+    if 'num_epochs' in flat_config and isinstance(flat_config['num_epochs'], str):
+        flat_config['num_epochs'] = int(flat_config['num_epochs'])
+    
+    if 'logging_steps' in flat_config and isinstance(flat_config['logging_steps'], str):
+        flat_config['logging_steps'] = int(flat_config['logging_steps'])
+    
+    if 'max_seq_len' in flat_config and isinstance(flat_config['max_seq_len'], str):
+        flat_config['max_seq_len'] = int(flat_config['max_seq_len'])
+    
     # Create Config instance with loaded values
     return Config(**flat_config)
 
 
-def init_tokenizer(cfg: Config) -> PreTrainedTokenizerFast:
+def init_tokenizer(cfg: Config) -> SentencePieceTokenizerWrapper:
     """Initialize the tokenizer."""
-    tok = PreTrainedTokenizerFast(
-        tokenizer_file=str(cfg.tokenizer_path),
-        bos_token="<bos>",
-        eos_token="<eos>",
-        unk_token="<unk>",
-        pad_token="<pad>",
-    )
-    return tok
+    tokenizer = SentencePieceTokenizerWrapper(str(cfg.tokenizer_path))
+    print(f"Loaded tokenizer with vocab size: {tokenizer.vocab_size}")
+    return tokenizer
 
 
 def init_model(cfg: Config) -> GPT2LMHeadModel:
@@ -116,6 +189,37 @@ def load_data(cfg: Config):
     return ds.train_test_split(test_size=0.1)
 
 
+class CustomDataCollator:
+    """Custom data collator for our tokenized dataset."""
+    
+    def __init__(self, tokenizer: SentencePieceTokenizerWrapper, max_length: int = 256):
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+    
+    def __call__(self, examples):
+        # Extract input_ids from examples
+        input_ids = [ex["input_ids"] for ex in examples]
+        
+        # Pad sequences to max_length
+        padded_ids = []
+        attention_masks = []
+        
+        for ids in input_ids:
+            if len(ids) > self.max_length:
+                ids = ids[:self.max_length]
+            
+            # Pad with pad_token_id
+            padding_length = self.max_length - len(ids)
+            padded_ids.append(ids + [self.tokenizer.pad_token_id] * padding_length)
+            attention_masks.append([1] * len(ids) + [0] * padding_length)
+        
+        return {
+            "input_ids": torch.tensor(padded_ids, dtype=torch.long),
+            "attention_mask": torch.tensor(attention_masks, dtype=torch.long),
+            "labels": torch.tensor(padded_ids, dtype=torch.long)
+        }
+
+
 def train(cfg: Config):
     """Main training function."""
     
@@ -129,10 +233,8 @@ def train(cfg: Config):
     model = init_model(cfg)
     data = load_data(cfg)
     
-    # Create data collator
-    collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer, mlm=False, pad_to_multiple_of=8
-    )
+    # Create custom data collator
+    collator = CustomDataCollator(tokenizer, max_length=cfg.max_seq_len)
     
     # Initialize wandb
     wandb.init(
@@ -158,7 +260,7 @@ def train(cfg: Config):
         logging_dir=str(cfg.logging_dir),
         logging_steps=cfg.logging_steps,
         save_strategy="epoch",
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         seed=42,
         report_to=["wandb"],
     )
@@ -177,7 +279,7 @@ def train(cfg: Config):
     trainer.train()
     trainer.save_model(cfg.output_dir / "final")
     
-    print(f"✅ Training completed! Model saved to {cfg.output_dir / 'final'}")
+    print(f" Training completed! Model saved to {cfg.output_dir / 'final'}")
 
 
 def main():

@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 import multiprocessing as mp
 from datasets import Dataset, Features, Value, Sequence
-from tokenizers import SentencePieceBPETokenizer
+import sentencepiece as spm
 import tqdm
 
 
@@ -20,10 +20,11 @@ def find_processed_files(data_dir: Path) -> List[Path]:
     return sorted(txt_files)
 
 
-def load_tokenizer(model_path: Path) -> SentencePieceBPETokenizer:
+def load_tokenizer(model_path: Path) -> spm.SentencePieceProcessor:
     """Load the trained SentencePiece tokenizer."""
     try:
-        tokenizer = SentencePieceBPETokenizer.from_file(str(model_path))
+        tokenizer = spm.SentencePieceProcessor()
+        tokenizer.load(str(model_path))
         print(f"Loaded tokenizer from {model_path}")
         return tokenizer
     except Exception as e:
@@ -33,25 +34,26 @@ def load_tokenizer(model_path: Path) -> SentencePieceBPETokenizer:
 
 def process_file_chunk(args: tuple) -> List[Dict[str, Any]]:
     """Process a chunk of lines from a file."""
-    file_path, tokenizer, max_length = args
+    file_path, tokenizer, max_length, max_examples_per_file = args
     results = []
     
     try:
         with file_path.open('r', encoding='utf-8', errors='replace') as f:
-            for line in f:
+            for line_num, line in enumerate(f):
+                # Limit examples per file if specified
+                if max_examples_per_file and line_num >= max_examples_per_file:
+                    break
+                    
                 line = line.strip()
                 if not line:
                     continue
                 
                 # Tokenize the line
-                encoding = tokenizer.encode(line)
-                input_ids = encoding.ids
+                input_ids = tokenizer.encode(line)
                 
-                # Truncate if too long
                 if len(input_ids) > max_length:
                     input_ids = input_ids[:max_length]
                 
-                # Skip if too short
                 if len(input_ids) < 10:
                     continue
                 
@@ -73,7 +75,8 @@ def build_tokenized_dataset(
     tokenizer_path: Path,
     output_dir: Path,
     max_length: int = 256,
-    num_proc: int = 4
+    num_proc: int = 4,
+    max_examples_per_file: int = None
 ) -> None:
     """Build and save the tokenized dataset."""
     
@@ -87,19 +90,21 @@ def build_tokenized_dataset(
     for f in input_files:
         print(f"  - {f.name}")
     
-    # Load tokenizer
+
     tokenizer = load_tokenizer(tokenizer_path)
     
-    # Create output directory
+
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Process files in parallel
+
     print(f"\nProcessing files with {num_proc} workers...")
+    if max_examples_per_file:
+        print(f"Limiting to {max_examples_per_file} examples per file")
     
-    # Prepare arguments for multiprocessing
-    chunk_args = [(f, tokenizer, max_length) for f in input_files]
+  
+    chunk_args = [(f, tokenizer, max_length, max_examples_per_file) for f in input_files]
     
-    # Process files
+ 
     all_results = []
     with mp.Pool(num_proc) as pool:
         for result in tqdm.tqdm(
@@ -130,7 +135,7 @@ def build_tokenized_dataset(
     print(f"Saving dataset to {output_dir}...")
     dataset.save_to_disk(str(output_dir))
     
-    # Print statistics
+  
     avg_length = sum(ex["length"] for ex in all_results) / len(all_results)
     max_len = max(ex["length"] for ex in all_results)
     min_len = min(ex["length"] for ex in all_results)
@@ -176,6 +181,11 @@ def main():
         default=4,
         help="Number of processes for parallel processing (default: 4)"
     )
+    parser.add_argument(
+        "--max_examples_per_file",
+        type=int,
+        help="Maximum number of examples per file (optional)"
+    )
     
     args = parser.parse_args()
     
@@ -199,7 +209,8 @@ def main():
         tokenizer_path=tokenizer_path,
         output_dir=output_dir,
         max_length=args.max_length,
-        num_proc=args.num_proc
+        num_proc=args.num_proc,
+        max_examples_per_file=args.max_examples_per_file
     )
 
 
