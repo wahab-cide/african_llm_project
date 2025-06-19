@@ -1,0 +1,39 @@
+# Core ML/NLP libraries
+torch>=2.0.0
+transformers>=4.30.0
+datasets>=2.12.0
+tokenizers>=0.13.0
+sentencepiece>=0.1.99
+
+# Training and optimization
+accelerate>=0.20.0
+wandb>=0.15.0
+tensorboard>=2.13.0
+
+# Data processing
+pandas>=1.5.0
+numpy>=1.24.0
+tqdm>=4.65.0
+
+# Configuration and utilities
+pyyaml>=6.0
+click>=8.1.0
+python-dotenv>=1.0.0
+
+# Data versioning
+dvc>=3.0.0
+
+# Language detection and processing
+langdetect>=1.0.9
+polyglot>=16.7.4
+
+# Development and testing
+pytest>=7.3.0
+black>=23.0.0
+flake8>=6.0.0
+
+# Optional: For Apple Silicon (MPS) support
+# torch>=2.0.0  # Already included above
+
+# Optional: For GPU support
+# torch>=2.0.0+cu118  # Use CUDA version if needed 
