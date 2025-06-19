@@ -203,3 +203,16 @@ __marimo__/
 # Custom ignores
 data/raw/
 *.ipynb_checkpoints/
+data/raw/
+
+# Large model files and datasets
+outputs/
+wandb/
+data/processed/tokenized_dataset/
+data/processed/tokenized_dataset_small/
+tokenization/*.model
+tokenization/*.vocab
+*.safetensors
+*.bin
+*.pt
+*.pth
