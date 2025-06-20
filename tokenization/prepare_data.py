@@ -12,13 +12,21 @@ def clean_text(text: str) -> str | None:
     text = _RE_QUOTES.sub(r"", text)
     text = _RE_WS.sub(" ", text).strip()
     
-    # Basic filtering: remove very short lines and lines that are mostly numbers/symbols
-    if len(text) < 10:  # Skip very short lines
+    if len(text) < 10:
+        return None
+    
+    # Remove lines with >=30% digits
+    digit_ratio = sum(1 for c in text if c.isdigit()) / len(text)
+    if digit_ratio >= 0.3:
+        return None
+    
+    # Remove lines with 'ም.' or '.com' (repeated or present)
+    if 'ም.' in text or '.com' in text:
         return None
     
     # Skip lines that are mostly numbers or symbols
     alpha_ratio = sum(1 for c in text if c.isalpha()) / len(text)
-    if alpha_ratio < 0.3:  # At least 30% should be alphabetic
+    if alpha_ratio < 0.3:
         return None
     
     return text if text else None
@@ -81,8 +89,29 @@ if __name__ == "__main__":
         ("data/raw/yoruba/**/*.txt", "data/processed/yoruba.txt", "yo"),
     ]
     
+    token_counts = {}
     for in_glob, out_path, lang_code in languages:
         print(f"\nProcessing {lang_code}...")
         process_files(in_glob, project_root / out_path, lang_code)
+        # Count tokens in output file
+        out_file = project_root / out_path
+        if out_file.exists():
+            with out_file.open("r", encoding="utf-8") as f:
+                tokens = sum(len(line.split()) for line in f)
+            token_counts[lang_code] = tokens
+            print(f"{lang_code}: {tokens:,} tokens")
+        else:
+            token_counts[lang_code] = 0
+    
+    # Print summary and check balance
+    print("\nToken counts per language:")
+    for lang, count in token_counts.items():
+        print(f"  {lang}: {count:,}")
+    if token_counts:
+        min_tokens = min(token_counts.values())
+        for lang, count in token_counts.items():
+            if min_tokens > 0 and count > 3 * min_tokens:
+                print(f"Warning: {lang} has more than 3x the tokens of the smallest language. Stopping.")
+                break
                   
                   

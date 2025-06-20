@@ -1,0 +1,36 @@
+model:
+  name: "gpt2"
+  config:
+    vocab_size: 16003
+    n_positions: 512
+    n_ctx: 512
+    n_embd: 768
+    n_layer: 8
+    n_head: 8
+    resid_pdrop: 0.1
+    embd_pdrop: 0.1
+    attn_pdrop: 0.1
+
+training:
+  batch_size: 4
+  gradient_accumulation_steps: 8
+  lr: 5e-5
+  num_epochs: 10
+  warmup_steps: 100
+  logging_steps: 100
+  save_steps: 1000
+  eval_steps: 1000
+  output_dir: outputs/models/htf-v2
+  fp16: false
+  dataloader_num_workers: 4
+  remove_unused_columns: false
+
+data:
+  dataset_path: "data/processed/tokenized_dataset_small"
+  max_length: 256
+  text_column: "text"
+  label_column: "input_ids"
+
+logging:
+  project: "african_llm"
+  run_name: "htf-v2"

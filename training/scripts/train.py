@@ -94,6 +94,11 @@ class Config:
     bos_token_id: int = 1
     eos_token_id: int = 2
     pad_token_id: int = 3
+    n_positions: int = 512
+    n_ctx: int = 512
+    resid_pdrop: float = 0.1
+    embd_pdrop: float = 0.1
+    attn_pdrop: float = 0.1
     
     # Data
     tokenized_path: str = "data/processed/tokenized_dataset"
@@ -101,7 +106,7 @@ class Config:
     
     # Training
     batch_size: int = 16
-    gradient_accum: int = 2
+    gradient_accumulation_steps: int = 2
     lr: float = 2e-4
     warmup_ratio: float = 0.06
     fp16: bool = True
@@ -130,10 +135,17 @@ def load_config_from_yaml(config_path: Path) -> Config:
     with open(config_path, 'r') as f:
         config_dict = yaml.safe_load(f)
     
-    # Flatten nested structure
     flat_config = {}
     for section, values in config_dict.items():
-        if isinstance(values, dict):
+        if section == "model" and isinstance(values, dict):
+            for k, v in values.items():
+                if k == "name":
+                    continue
+                if k == "config" and isinstance(v, dict):
+                    flat_config.update(v)
+                else:
+                    flat_config[k] = v
+        elif isinstance(values, dict):
             flat_config.update(values)
         else:
             flat_config[section] = values
@@ -141,20 +153,15 @@ def load_config_from_yaml(config_path: Path) -> Config:
     # Convert string values to appropriate types
     if 'lr' in flat_config and isinstance(flat_config['lr'], str):
         flat_config['lr'] = float(flat_config['lr'])
-    
     if 'warmup_ratio' in flat_config and isinstance(flat_config['warmup_ratio'], str):
         flat_config['warmup_ratio'] = float(flat_config['warmup_ratio'])
-    
     if 'num_epochs' in flat_config and isinstance(flat_config['num_epochs'], str):
         flat_config['num_epochs'] = int(flat_config['num_epochs'])
-    
     if 'logging_steps' in flat_config and isinstance(flat_config['logging_steps'], str):
         flat_config['logging_steps'] = int(flat_config['logging_steps'])
-    
     if 'max_seq_len' in flat_config and isinstance(flat_config['max_seq_len'], str):
         flat_config['max_seq_len'] = int(flat_config['max_seq_len'])
     
-    # Create Config instance with loaded values
     return Config(**flat_config)
 
 
@@ -252,7 +259,7 @@ def train(cfg: Config):
         output_dir=str(cfg.output_dir),
         overwrite_output_dir=True,
         per_device_train_batch_size=cfg.batch_size,
-        gradient_accumulation_steps=cfg.gradient_accum,
+        gradient_accumulation_steps=cfg.gradient_accumulation_steps,
         learning_rate=cfg.lr,
         warmup_ratio=cfg.warmup_ratio,
         num_train_epochs=cfg.num_epochs,

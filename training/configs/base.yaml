@@ -1,25 +1,25 @@
 model:
   vocab_size: 16003
   n_layer: 2
-  n_embd: 256
-  n_head: 4
+  n_embd: 768
+  n_head: 8
   bos_token_id: 1
   eos_token_id: 2
   pad_token_id: 3
 
 data:
   tokenized_path: "data/processed/tokenized_dataset_small"
-  max_seq_len: 128
+  max_seq_len: 256
 
 training:
-  batch_size: 8
-  gradient_accum: 4
-  lr: 2e-4
+  batch_size: 4
+  gradient_accumulation_steps: 8
+  lr: 5e-4
   warmup_ratio: 0.06
   fp16: false
-  num_epochs: 3
+  num_epochs: 10
   logging_steps: 100
 
 logging:
   project: "african-llm"
-  run_id: "htf-v1-fast" 
+  run_id: "htf-v2" 
