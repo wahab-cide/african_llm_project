@@ -4,6 +4,7 @@ import argparse
 import yaml
 from dataclasses import dataclass
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import torch
@@ -99,10 +100,17 @@ class Config:
     resid_pdrop: float = 0.1
     embd_pdrop: float = 0.1
     attn_pdrop: float = 0.1
+    layer_norm_epsilon: float = 1e-5
     
     # Data
     tokenized_path: str = "data/processed/tokenized_dataset"
     max_seq_len: int = 256
+    dataset_path: str = "data/enhanced/tokenized_dataset"
+    max_length: int = 512
+    text_column: str = "text"
+    label_column: str = "input_ids"
+    use_language_tags: bool = True
+    content_type_tags: bool = True
     
     # Training
     batch_size: int = 16
@@ -112,18 +120,53 @@ class Config:
     fp16: bool = True
     num_epochs: int = 5
     logging_steps: int = 50
+    warmup_steps: int = 100
+    save_steps: int = 1000
+    eval_steps: int = 1000
+    learning_rate_scheduler_type: str = "linear"
+    weight_decay: float = 0.0
+    max_grad_norm: float = 1.0
+    evaluation_strategy: str = "epoch"
+    save_strategy: str = "epoch"
+    load_best_model_at_end: bool = False
+    metric_for_best_model: str = "eval_loss"
+    greater_is_better: bool = False
+    dataloader_num_workers: int = 4
+    remove_unused_columns: bool = False
     
     # Logging
     project: str = "african-llm"
     run_id: str = "htf-v1"
+    run_name: str = "htf-v1"
+    tags: List[str] = None
     
     # Paths
     base_dir: Path = Path("outputs")
     tokenizer_path: Path = Path("tokenization/htf_bpe_16k.model")
+    output_dir: str = "outputs/models/htf-v1"
+    
+    # Enhanced config specific
+    languages: List[str] = None
+    content_distribution: dict = None
+    
+    def __post_init__(self):
+        if self.tags is None:
+            self.tags = []
+        if self.languages is None:
+            self.languages = ["am", "ff", "ha", "so", "sw", "yo"]
+        if self.content_distribution is None:
+            self.content_distribution = {
+                "dialogue": 0.15,
+                "children": 0.10,
+                "fiction": 0.10,
+                "news": 0.15,
+                "academic": 0.10,
+                "general": 0.40
+            }
     
     @property
-    def output_dir(self) -> Path:
-        return self.base_dir / "models" / self.run_id
+    def output_dir_path(self) -> Path:
+        return Path(self.output_dir)
     
     @property
     def logging_dir(self) -> Path:
@@ -145,6 +188,9 @@ def load_config_from_yaml(config_path: Path) -> Config:
                     flat_config.update(v)
                 else:
                     flat_config[k] = v
+        elif section in ["languages", "content_distribution"]:
+            # Keep these as nested structures
+            flat_config[section] = values
         elif isinstance(values, dict):
             flat_config.update(values)
         else:
@@ -188,7 +234,8 @@ def init_model(cfg: Config) -> GPT2LMHeadModel:
 
 def load_data(cfg: Config):
     """Load the tokenized dataset."""
-    data_path = Path(cfg.tokenized_path)
+    # Use enhanced dataset path if available, otherwise fall back to old path
+    data_path = Path(cfg.dataset_path if hasattr(cfg, 'dataset_path') else cfg.tokenized_path)
     assert data_path.exists(), f"Tokenized dataset not found at {data_path}!"
     
     ds = load_from_disk(str(data_path))
@@ -251,12 +298,12 @@ def train(cfg: Config):
     )
     
     # Create output directories
-    cfg.output_dir.mkdir(parents=True, exist_ok=True)
+    cfg.output_dir_path.mkdir(parents=True, exist_ok=True)
     cfg.logging_dir.mkdir(parents=True, exist_ok=True)
     
     # Training arguments
     args = TrainingArguments(
-        output_dir=str(cfg.output_dir),
+        output_dir=str(cfg.output_dir_path),
         overwrite_output_dir=True,
         per_device_train_batch_size=cfg.batch_size,
         gradient_accumulation_steps=cfg.gradient_accumulation_steps,
@@ -266,10 +313,21 @@ def train(cfg: Config):
         fp16=cfg.fp16,
         logging_dir=str(cfg.logging_dir),
         logging_steps=cfg.logging_steps,
-        save_strategy="epoch",
-        eval_strategy="epoch",
+        save_strategy=cfg.save_strategy,
+        eval_strategy=cfg.evaluation_strategy,
         seed=42,
         report_to=["wandb"],
+        warmup_steps=cfg.warmup_steps,
+        save_steps=cfg.save_steps,
+        eval_steps=cfg.eval_steps,
+        lr_scheduler_type=cfg.learning_rate_scheduler_type,
+        weight_decay=cfg.weight_decay,
+        max_grad_norm=cfg.max_grad_norm,
+        load_best_model_at_end=cfg.load_best_model_at_end,
+        metric_for_best_model=cfg.metric_for_best_model,
+        greater_is_better=cfg.greater_is_better,
+        dataloader_num_workers=cfg.dataloader_num_workers,
+        remove_unused_columns=cfg.remove_unused_columns,
     )
     
     # Initialize trainer
@@ -284,9 +342,9 @@ def train(cfg: Config):
     # Train
     print(f"Starting training with config: {cfg}")
     trainer.train()
-    trainer.save_model(cfg.output_dir / "final")
+    trainer.save_model(cfg.output_dir_path / "final")
     
-    print(f" Training completed! Model saved to {cfg.output_dir / 'final'}")
+    print(f" Training completed! Model saved to {cfg.output_dir_path / 'final'}")
 
 
 def main():

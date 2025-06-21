@@ -1,0 +1,66 @@
+model:
+  name: "gpt2"
+  config:
+    vocab_size: 16003
+    n_positions: 1024
+    n_ctx: 1024
+    n_embd: 1024
+    n_layer: 12
+    n_head: 16
+    resid_pdrop: 0.1
+    embd_pdrop: 0.1
+    attn_pdrop: 0.1
+    layer_norm_epsilon: 1e-5
+
+training:
+  batch_size: 2
+  gradient_accumulation_steps: 16
+  lr: 1e-4
+  num_epochs: 15
+  warmup_steps: 500
+  logging_steps: 50
+  save_steps: 1000
+  eval_steps: 1000
+  output_dir: outputs/models/enhanced-v1
+  fp16: false
+  dataloader_num_workers: 2
+  remove_unused_columns: false
+  learning_rate_scheduler_type: "cosine"
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  evaluation_strategy: "steps"
+  save_strategy: "steps"
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+
+data:
+  dataset_path: "data/enhanced/tokenized_dataset"
+  max_length: 512
+  text_column: "text"
+  label_column: "input_ids"
+  use_language_tags: true
+  content_type_tags: true
+
+logging:
+  project: "african_llm_enhanced"
+  run_name: "enhanced-v1"
+  tags: ["enhanced", "multilingual", "african"]
+
+# Language-specific settings
+languages:
+  - "am"  # Amharic
+  - "ff"  # Fulani  
+  - "ha"  # Hausa
+  - "so"  # Somali
+  - "sw"  # Swahili
+  - "yo"  # Yoruba
+
+# Content type distribution targets
+content_distribution:
+  dialogue: 0.15
+  children: 0.10
+  fiction: 0.10
+  news: 0.15
+  academic: 0.10
+  general: 0.40 

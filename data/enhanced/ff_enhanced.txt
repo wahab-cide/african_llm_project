@@ -1,0 +1,5 @@
+<ff> <dialogue> Ko honɗa? Miɗo golli. Aɗa woodi ɓiɓɓe?
+<ff> <children> Wani yaro yana da kare. Kare yana son wasa. Yaro da kare suna tafiya a fili.
+<ff> <children> Wata yarinya tana da bishiya. Bishiya tana da 'ya'ya. Yarinya tana cin 'ya'yan bishiya.
+<ff> <dialogue> Jam na? Jam. No ngon?
+<ff> <dialogue> Miɗo yahay suudu. Jam. Jaraama.

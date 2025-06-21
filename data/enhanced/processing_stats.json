@@ -1,0 +1,62 @@
+{
+  "am": {
+    "total": 56933,
+    "cleaned": 56933,
+    "dialogue": 5788,
+    "children": 168,
+    "fiction": 17,
+    "news": 664,
+    "academic": 41,
+    "general": 50260
+  },
+  "ff": {
+    "total": 0,
+    "cleaned": 0,
+    "dialogue": 3,
+    "children": 2,
+    "fiction": 0,
+    "news": 0,
+    "academic": 0,
+    "general": 0
+  },
+  "ha": {
+    "total": 50025,
+    "cleaned": 50025,
+    "dialogue": 3551,
+    "children": 1606,
+    "fiction": 19,
+    "news": 453,
+    "academic": 184,
+    "general": 44217
+  },
+  "so": {
+    "total": 50036,
+    "cleaned": 50036,
+    "dialogue": 7126,
+    "children": 492,
+    "fiction": 84,
+    "news": 247,
+    "academic": 441,
+    "general": 41651
+  },
+  "sw": {
+    "total": 70659,
+    "cleaned": 70659,
+    "dialogue": 4541,
+    "children": 2925,
+    "fiction": 169,
+    "news": 223,
+    "academic": 144,
+    "general": 62662
+  },
+  "yo": {
+    "total": 15186,
+    "cleaned": 15186,
+    "dialogue": 1236,
+    "children": 42,
+    "fiction": 10,
+    "news": 56,
+    "academic": 169,
+    "general": 13678
+  }
+}
