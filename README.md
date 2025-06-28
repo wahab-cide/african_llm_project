@@ -256,11 +256,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Weights & Biases**: For experiment tracking
 - **African NLP Community**: For inspiration and support
 
-## 📞 Contact
-
-- **Project Maintainer**: [Your Name]
-- **Email**: [your.email@example.com]
-- **GitHub Issues**: [Project Issues Page]
 
 ## 📚 Additional Resources
 
@@ -268,6 +263,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Masakhane Project](https://www.masakhane.io/)
 - [Hugging Face African Language Models](https://huggingface.co/models?search=african)
 
----
-
-**Note**: This project is actively maintained. For the latest updates, please check the [releases page](https://github.com/wahab-cide/african_llm_project/releases).
